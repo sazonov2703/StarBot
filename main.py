@@ -6,6 +6,8 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
+from aiohttp import web
+import asyncio
 
 # Загрузка переменных окружения
 load_dotenv()
@@ -295,5 +297,25 @@ async def cancel_order(callback: types.CallbackQuery, state: FSMContext):
     if order_id in orders:
         del orders[order_id]
 
+# Веб сервер
+async def handle_ping(request):
+    return web.Response(text="OK")
+
+# Веб сервер
+async def start_web():
+    app = web.Application()
+    app.router.add_get('/ping', handle_ping)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', int(os.getenv("PORT", 8080)))
+    await site.start()
+
+async def main():
+    # Запускаем веб-сервер
+    await start_web()
+    # Запускаем polling бота
+    await dp.start_polling(bot)
+
 if __name__ == '__main__':
-    dp.run_polling(bot)
+    import asyncio
+    asyncio.run(main())
