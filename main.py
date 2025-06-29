@@ -220,9 +220,10 @@ async def confirm_order(callback: types.CallbackQuery, state: FSMContext):
     )
     
     # Сообщение пользователю
-    await callback.message.edit_text(
-       f"🆔 <b>ID заказа:</b> <code>{order_data['order_id']}</code>\n",
-       parse_mode="HTML"
+    await callback.message.answer(
+       f"💸 <b>Заказ создан</b>",
+       parse_mode="HTML",
+       reply_markup=builder.as_markup(resize_keyboard=True)
     )
 
     # 📩 Инструкция по оплате с кликабельным ID и ссылкой
@@ -239,16 +240,17 @@ async def confirm_order(callback: types.CallbackQuery, state: FSMContext):
 @dp.callback_query(F.data.startswith("cancel_"), OrderStates.CONFIRMATION)
 async def cancel_order(callback: types.CallbackQuery, state: FSMContext):
     order_id = callback.data.split("_")[1]
-    await callback.message.edit_text(
-        "🗑 <b>Заказ отменён</b>\n\n"
-        "Если передумаете - мы всегда на связи!",
-        parse_mode="HTML"
-    )
-    
+
     # Возвращаем главное меню
     builder = ReplyKeyboardBuilder()
     builder.add(types.KeyboardButton(text="🛒 Сделать заказ"))
     builder.add(types.KeyboardButton(text="📝 Посмотреть отзывы"))
+
+    await callback.message.answer(
+        f"❌ <b>Заказ отменен</b>",
+        parse_mode="HTML",
+        reply_markup=builder.as_markup(resize_keyboard=True)
+    )
     
     await state.clear()
     if order_id in orders:
