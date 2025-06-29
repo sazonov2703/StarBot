@@ -75,7 +75,7 @@ async def get_username(message: types.Message, state: FSMContext):
         username = f"@{message.from_user.username}" if message.from_user.username else f"ID: {message.from_user.id}"
         await state.update_data(target_username=username)
     elif not message.text.startswith("@"):
-        await message.answer("❌ Username должен начинаться с @!")
+        await message.edit_text("❌ Username должен начинаться с @!")
         return
     else:
         await state.update_data(target_username=message.text)
@@ -88,7 +88,7 @@ async def get_username(message: types.Message, state: FSMContext):
         builder.add(types.KeyboardButton(text=str(qty)))
     builder.adjust(3)
     
-    await message.answer(
+    await message.edit_text(
         "🔢 <b>Выберите количество или введите своё</b> (от 50):",
         reply_markup=builder.as_markup(resize_keyboard=True),
         parse_mode="HTML"
@@ -97,7 +97,7 @@ async def get_username(message: types.Message, state: FSMContext):
 @dp.message(OrderStates.GET_QUANTITY)
 async def get_quantity(message: types.Message, state: FSMContext):
     if not message.text.isdigit() or int(message.text) < 50:
-        await message.answer("❌ Введите число от 50!")
+        await message.edit_text("❌ Введите число от 50!")
         return
         
     await state.update_data(quantity=message.text)
@@ -109,7 +109,7 @@ async def get_quantity(message: types.Message, state: FSMContext):
         builder.add(types.KeyboardButton(text=method))
     builder.adjust(2)
     
-    await message.answer(
+    await message.edit_text(
         "💳 <b>Выберите способ оплаты:</b>",
         reply_markup=builder.as_markup(resize_keyboard=True),
         parse_mode="HTML"
@@ -121,7 +121,7 @@ async def get_payment_method(message: types.Message, state: FSMContext):
     
     # Если выбран "Другой способ", просим уточнить
     if payment_method == "✏️ Другой способ":
-        await message.answer(
+        await message.edit_text(
             "✏️ <b>Укажите ваш способ оплаты:</b>",
             reply_markup=types.ReplyKeyboardRemove(),  # Удаляем кнопки оплаты
             parse_mode="HTML"
@@ -143,7 +143,7 @@ async def get_payment_method(message: types.Message, state: FSMContext):
     await state.update_data(order_id=order_id)
     
     # Удаляем кнопки оплаты перед подтверждением
-    await message.answer(
+    await message.edit_text(
         "✅ <b>Проверьте ваш заказ:</b>",
         reply_markup=types.ReplyKeyboardRemove(),
         parse_mode="HTML"
@@ -167,7 +167,7 @@ async def get_payment_method(message: types.Message, state: FSMContext):
     builder.adjust(2)
     
     await state.set_state(OrderStates.CONFIRMATION)
-    await message.answer(
+    await message.edit_text(
         summary,
         reply_markup=builder.as_markup(),
         parse_mode="HTML"
@@ -182,11 +182,6 @@ async def confirm_order(callback: types.CallbackQuery, state: FSMContext):
     builder = ReplyKeyboardBuilder()
     builder.add(types.KeyboardButton(text="🛒 Сделать заказ"))
     builder.add(types.KeyboardButton(text="📝 Посмотреть отзывы"))
-    await bot.send_message(
-        chat_id=callback.from_user.id,
-        text="Выберите действие:",
-        reply_markup=builder.as_markup(resize_keyboard=True)
-    )
 
     if not order_data:
         await callback.message.edit_text("⚠️ Заказ не найден!")
@@ -225,7 +220,7 @@ async def confirm_order(callback: types.CallbackQuery, state: FSMContext):
     )
     
     # Сообщение пользователю
-    await callback.message.edit_text(
+    await callback.message.send_message(
         "✨ <b>Заказ отправлен на проверку!</b>\n\n"
         "Администратор проверит ваш заказ и свяжется с вами в ближайшее время.",
         parse_mode="HTML"
@@ -278,7 +273,7 @@ async def admin_reject_order(callback: types.CallbackQuery):
 @dp.callback_query(F.data.startswith("cancel_"), OrderStates.CONFIRMATION)
 async def cancel_order(callback: types.CallbackQuery, state: FSMContext):
     order_id = callback.data.split("_")[1]
-    await callback.message.edit_text(
+    await callback.message.send_message(
         "🗑 <b>Заказ отменён</b>\n\n"
         "Если передумаете - мы всегда на связи!",
         parse_mode="HTML"
