@@ -299,6 +299,7 @@ async def cancel_order(callback: types.CallbackQuery, state: FSMContext):
 
 # Веб сервер
 async def handle_ping(request):
+    print("/ping recieved")
     return web.Response(text="OK")
 
 # Веб сервер
