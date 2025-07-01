@@ -106,7 +106,7 @@ async def get_quantity(message: types.Message, state: FSMContext):
     await state.update_data(quantity=message.text)
     await state.set_state(OrderStates.GET_PAYMENT_METHOD)
 
-    await state.update_data(total_value=int(message.text) * BUY_RATE * COMMISSION)
+    await state.update_data(total_value=int(message.text) * int(BUY_RATE) * int(COMMISSION))
     
     # Создаем кнопки с способами оплаты
     builder = ReplyKeyboardBuilder()
@@ -136,9 +136,7 @@ async def get_payment_method(message: types.Message, state: FSMContext):
 
     # Расчёт суммы
     quantity = int(user_data["quantity"])
-    buy_rate = int(BUY_RATE)
-    commission = int(COMMISSION)
-    total_value = quantity * buy_rate * commission
+    total_value = quantity * int(BUY_RATE) * int(COMMISSION)
 
     order_id = str(uuid.uuid4())
     
