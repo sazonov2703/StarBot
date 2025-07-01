@@ -14,8 +14,8 @@ load_dotenv()
 TOKEN = os.getenv('BOT_TOKEN')
 ADMIN_CHAT_ID = os.getenv('ADMIN_CHAT_ID')
 ADMIN_GROUP_ID = os.getenv('ADMIN_GROUP_ID')
-BUY_RATE = int(os.getenv("BUY_RATE"))
-COMMISSION = int(os.getenv("COMMISSION"))
+BUY_RATE = os.getenv("BUY_RATE")
+COMMISSION = os.getenv("COMMISSION")
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
@@ -136,7 +136,9 @@ async def get_payment_method(message: types.Message, state: FSMContext):
 
     # Расчёт суммы
     quantity = int(user_data["quantity"])
-    total_value = quantity * BUY_RATE * COMMISSION
+    buy_rate = int(BUY_RATE)
+    commission = int(COMMISSION)
+    total_value = quantity * buy_rate * commission
 
     order_id = str(uuid.uuid4())
     
