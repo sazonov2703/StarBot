@@ -14,6 +14,8 @@ load_dotenv()
 TOKEN = os.getenv('BOT_TOKEN')
 ADMIN_CHAT_ID = os.getenv('ADMIN_CHAT_ID')
 ADMIN_GROUP_ID = os.getenv('ADMIN_GROUP_ID')
+BUY_RATE = os.getenv("BUY_RATE")
+COMMISSION = os.getenv("COMMISSION")
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
@@ -28,12 +30,6 @@ class OrderStates(StatesGroup):
 
 # Временное хранилище заказов
 orders = {}
-
-# Курс покупки звезд
-rate = 1.7
-
-# Комиссия
-commission = 1
 
 # Способы оплаты
 PAYMENT_METHODS = [
@@ -110,7 +106,7 @@ async def get_quantity(message: types.Message, state: FSMContext):
     await state.update_data(quantity=message.text)
     await state.set_state(OrderStates.GET_PAYMENT_METHOD)
 
-    await state.update_data(total_value=int(message.text) * rate * commission)
+    await state.update_data(total_value=int(message.text) * BUY_RATE * COMMISSION)
     
     # Создаем кнопки с способами оплаты
     builder = ReplyKeyboardBuilder()
@@ -140,7 +136,7 @@ async def get_payment_method(message: types.Message, state: FSMContext):
 
     # Расчёт суммы
     quantity = int(user_data["quantity"])
-    total_value = quantity * rate * commission
+    total_value = quantity * BUY_RATE * COMMISSION
 
     order_id = str(uuid.uuid4())
     
