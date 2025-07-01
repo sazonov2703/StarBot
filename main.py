@@ -136,7 +136,7 @@ async def get_payment_method(message: types.Message, state: FSMContext):
 
     # Расчёт суммы
     quantity = int(user_data["quantity"])
-    total_value = quantity * float(BUY_RATE) * float(COMMISSION), 2
+    total_value = quantity * float(BUY_RATE) * float(COMMISSION)
 
     order_id = str(uuid.uuid4())
     
@@ -146,7 +146,7 @@ async def get_payment_method(message: types.Message, state: FSMContext):
         "target_username": user_data['target_username'],
         "quantity": quantity,
         "payment_method": payment_method,
-        "total_value": round(total_value, 2)  # округлим до копеек
+        "total_value": total_value
     }
 
     orders[order_id] = order_data
