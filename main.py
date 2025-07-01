@@ -23,10 +23,17 @@ class OrderStates(StatesGroup):
     GET_TARGET_USERNAME = State()
     GET_QUANTITY = State()
     GET_PAYMENT_METHOD = State()
+    TOTAL_VALUE = State()
     CONFIRMATION = State()
 
 # Временное хранилище заказов
 orders = {}
+
+# Курс покупки звезд
+rate = 1.7
+
+# Комиссия
+commission = 1
 
 # Способы оплаты
 PAYMENT_METHODS = [
@@ -102,6 +109,8 @@ async def get_quantity(message: types.Message, state: FSMContext):
         
     await state.update_data(quantity=message.text)
     await state.set_state(OrderStates.GET_PAYMENT_METHOD)
+
+    await state.update_data(total_value=int(message.text) * rate * commission)
     
     # Создаем кнопки с способами оплаты
     builder = ReplyKeyboardBuilder()
@@ -118,27 +127,32 @@ async def get_quantity(message: types.Message, state: FSMContext):
 @dp.message(OrderStates.GET_PAYMENT_METHOD)
 async def get_payment_method(message: types.Message, state: FSMContext):
     payment_method = message.text
-    
+    user_data = await state.get_data()
+
     # Если выбран "Другой способ", просим уточнить
     if payment_method == "✏️ Другой способ":
         await message.answer(
             "✏️ <b>Укажите ваш способ оплаты:</b>",
-            reply_markup=types.ReplyKeyboardRemove(),  # Удаляем кнопки оплаты
+            reply_markup=types.ReplyKeyboardRemove(),
             parse_mode="HTML"
         )
         return
-    
-    user_data = await state.get_data()
+
+    # Расчёт суммы
+    quantity = int(user_data["quantity"])
+    total_value = quantity * rate * commission
+
     order_id = str(uuid.uuid4())
     
     order_data = {
         "order_id": order_id,
         "user_id": message.from_user.id,
         "target_username": user_data['target_username'],
-        "quantity": user_data['quantity'],
-        "payment_method": payment_method
+        "quantity": quantity,
+        "payment_method": payment_method,
+        "total_value": round(total_value, 2)  # округлим до копеек
     }
-    
+
     orders[order_id] = order_data
     await state.update_data(order_id=order_id)
     
@@ -154,6 +168,7 @@ async def get_payment_method(message: types.Message, state: FSMContext):
     f"🎯 <b>Получатель:</b> {user_data['target_username']}\n"
     f"🔢 <b>Количество:</b> {user_data['quantity']}\n"
     f"💳 <b>Способ оплаты:</b> {payment_method}\n"
+    f"💸 <b>К оплате:</b> {order_data['total_value']:.2f} ₽\n"
     "<i>Подтвердите или отмените заказ</i>"
 )
     
@@ -195,6 +210,7 @@ async def confirm_order(callback: types.CallbackQuery, state: FSMContext):
         f"🆔 <b>User ID:</b> <code>{order_data['user_id']}</code>\n"
         f"🎯 <b>Получатель:</b> {order_data['target_username']}\n"
         f"🔢 <b>Количество:</b> {order_data['quantity']}\n"
+        f"💸 <b>К оплате:</b> {order_data['total_value']:.2f} ₽\n"
         f"💳 <b>Оплата:</b> {order_data['payment_method']}"
     )
     
