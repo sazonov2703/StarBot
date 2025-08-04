@@ -54,7 +54,6 @@ async def start_cmd(message: types.Message):
     builder = ReplyKeyboardBuilder()
     builder.add(types.KeyboardButton(text="🛒 Сделать заказ"))
     builder.add(types.KeyboardButton(text="📝 Посмотреть отзывы"))
-    builder.add(types.KeyboardButton(text="📊 Курсы"))
     await message.answer(
         "🌟 <b>Добро пожаловать в магазин звёзд!</b>",
         reply_markup=builder.as_markup(resize_keyboard=True),
@@ -64,17 +63,6 @@ async def start_cmd(message: types.Message):
 @dp.message(F.text == "📝 Посмотреть отзывы")
 async def show_reviews(message: types.Message):
     await message.answer("🔍 Наши отзывы: https://t.me/fasters_tg_feedback")
-
-@dp.message(F.text == "📊 Курсы")
-async def show_rates(message: types.Message):
-    rates_text = "📊 <b>Текущие курсы:</b>\n\n"
-    for method, info in PAYMENT_RATES.items():
-        rates_text += f"{method}: 1 звезда = {info['rate']} {info['currency']}"
-        if info['commission'] > 0:
-            rates_text += f" (комиссия {info['commission']*100}%)"
-        rates_text += "\n"
-    
-    await message.answer(rates_text, parse_mode="HTML")
 
 @dp.message(F.text == "🛒 Сделать заказ")
 async def start_order(message: types.Message, state: FSMContext):
@@ -118,7 +106,7 @@ async def get_username(message: types.Message, state: FSMContext):
 
 @dp.message(OrderStates.GET_QUANTITY)
 async def get_quantity(message: types.Message, state: FSMContext):
-    if not message.text.isdigit() or int(message.text) < 50:
+    if not (message.text.isdigit() or int(message.text) < 50 or int(message.text) > 50000):
         await message.answer("❌ Введите число от 50!")
         return
         
@@ -219,7 +207,6 @@ async def confirm_order(callback: types.CallbackQuery, state: FSMContext):
     builder = ReplyKeyboardBuilder()
     builder.add(types.KeyboardButton(text="🛒 Сделать заказ"))
     builder.add(types.KeyboardButton(text="📝 Посмотреть отзывы"))
-    builder.add(types.KeyboardButton(text="📊 Курсы"))
 
     if not order_data:
         await callback.message.answer("⚠️ Заказ не найден!")
@@ -285,7 +272,6 @@ async def cancel_order(callback: types.CallbackQuery, state: FSMContext):
     builder = ReplyKeyboardBuilder()
     builder.add(types.KeyboardButton(text="🛒 Сделать заказ"))
     builder.add(types.KeyboardButton(text="📝 Посмотреть отзывы"))
-    builder.add(types.KeyboardButton(text="📊 Курсы"))
 
     await callback.message.answer(
         "❌ <b>Заказ отменен</b>",
