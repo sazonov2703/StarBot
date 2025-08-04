@@ -14,8 +14,6 @@ load_dotenv()
 TOKEN = os.getenv('BOT_TOKEN')
 ADMIN_CHAT_ID = os.getenv('ADMIN_CHAT_ID')
 ADMIN_GROUP_ID = os.getenv('ADMIN_GROUP_ID')
-BUY_RATE = os.getenv("BUY_RATE")
-COMMISSION = os.getenv("COMMISSION")
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
@@ -31,13 +29,22 @@ class OrderStates(StatesGroup):
 # Временное хранилище заказов
 orders = {}
 
-# Способы оплаты
+# Способы оплаты и их курсы
 PAYMENT_METHODS = [
     "💳 Банковская карта",
     "📱 ЮMoney",
     "🪙 Криптовалюта (USDT)",
+    "💳 Апб",
     "✏️ Другой способ"
 ]
+
+PAYMENT_RATES = {
+    "💳 Банковская карта": {"rate": 1.4, "currency": "RUB", "commission": 0.0},
+    "📱 ЮMoney": {"rate": 1.4, "currency": "RUB", "commission": 0.0},
+    "🪙 Криптовалюта (USDT)": {"rate": 0.015, "currency": "USDT", "commission": 0.0},
+    "💳 Апб": {"rate": 0.3, "currency": "RUP", "commission": 0.0},
+    "✏️ Другой способ": {"rate": 1.45, "currency": "RUB", "commission": 0.0}
+}
 
 # Популярные количества
 QUANTITY_OPTIONS = [50, 100, 250, 500, 1000]
@@ -47,6 +54,7 @@ async def start_cmd(message: types.Message):
     builder = ReplyKeyboardBuilder()
     builder.add(types.KeyboardButton(text="🛒 Сделать заказ"))
     builder.add(types.KeyboardButton(text="📝 Посмотреть отзывы"))
+    builder.add(types.KeyboardButton(text="📊 Курсы"))
     await message.answer(
         "🌟 <b>Добро пожаловать в магазин звёзд!</b>",
         reply_markup=builder.as_markup(resize_keyboard=True),
@@ -56,6 +64,17 @@ async def start_cmd(message: types.Message):
 @dp.message(F.text == "📝 Посмотреть отзывы")
 async def show_reviews(message: types.Message):
     await message.answer("🔍 Наши отзывы: https://t.me/fasters_tg_feedback")
+
+@dp.message(F.text == "📊 Курсы")
+async def show_rates(message: types.Message):
+    rates_text = "📊 <b>Текущие курсы:</b>\n\n"
+    for method, info in PAYMENT_RATES.items():
+        rates_text += f"{method}: 1 звезда = {info['rate']} {info['currency']}"
+        if info['commission'] > 0:
+            rates_text += f" (комиссия {info['commission']*100}%)"
+        rates_text += "\n"
+    
+    await message.answer(rates_text, parse_mode="HTML")
 
 @dp.message(F.text == "🛒 Сделать заказ")
 async def start_order(message: types.Message, state: FSMContext):
@@ -106,8 +125,6 @@ async def get_quantity(message: types.Message, state: FSMContext):
     await state.update_data(quantity=message.text)
     await state.set_state(OrderStates.GET_PAYMENT_METHOD)
 
-    await state.update_data(total_value=int(message.text) * float(BUY_RATE) * float(COMMISSION))
-    
     # Создаем кнопки с способами оплаты
     builder = ReplyKeyboardBuilder()
     for method in PAYMENT_METHODS:
@@ -134,9 +151,15 @@ async def get_payment_method(message: types.Message, state: FSMContext):
         )
         return
 
-    # Расчёт суммы
+    # Получаем информацию о способе оплаты
+    payment_info = PAYMENT_RATES.get(payment_method, PAYMENT_RATES["✏️ Другой способ"])
+    rate = payment_info["rate"]
+    currency = payment_info["currency"]
+    commission = payment_info["commission"]
+    
+    # Расчёт суммы с учетом комиссии
     quantity = int(user_data["quantity"])
-    total_value = quantity * float(BUY_RATE) * float(COMMISSION)
+    total_value = quantity * rate * (1 + commission)
 
     order_id = str(uuid.uuid4())
     
@@ -146,7 +169,9 @@ async def get_payment_method(message: types.Message, state: FSMContext):
         "target_username": user_data['target_username'],
         "quantity": quantity,
         "payment_method": payment_method,
-        "total_value": total_value
+        "total_value": total_value,
+        "currency": currency,
+        "rate": rate
     }
 
     orders[order_id] = order_data
@@ -160,13 +185,14 @@ async def get_payment_method(message: types.Message, state: FSMContext):
     )
     
     summary = (
-    "📋 <b>Детали заказа:</b>\n\n"
-    f"🎯 <b>Получатель:</b> {user_data['target_username']}\n"
-    f"🔢 <b>Количество:</b> {user_data['quantity']}\n"
-    f"💳 <b>Способ оплаты:</b> {payment_method}\n"
-    f"💸 <b>К оплате:</b> {order_data['total_value']:.2f} ₽\n"
-    "<i>Подтвердите или отмените заказ</i>"
-)
+        "📋 <b>Детали заказа:</b>\n\n"
+        f"🎯 <b>Получатель:</b> {user_data['target_username']}\n"
+        f"🔢 <b>Количество:</b> {user_data['quantity']} звёзд\n"
+        f"💰 <b>Курс:</b> 1 звезда = {rate} {currency}\n"
+        f"💳 <b>Способ оплаты:</b> {payment_method}\n"
+        f"💸 <b>К оплате:</b> {total_value:.2f} {currency}\n"
+        "<i>Подтвердите или отмените заказ</i>"
+    )
     
     builder = InlineKeyboardBuilder()
     builder.add(types.InlineKeyboardButton(
@@ -193,6 +219,7 @@ async def confirm_order(callback: types.CallbackQuery, state: FSMContext):
     builder = ReplyKeyboardBuilder()
     builder.add(types.KeyboardButton(text="🛒 Сделать заказ"))
     builder.add(types.KeyboardButton(text="📝 Посмотреть отзывы"))
+    builder.add(types.KeyboardButton(text="📊 Курсы"))
 
     if not order_data:
         await callback.message.answer("⚠️ Заказ не найден!")
@@ -205,8 +232,9 @@ async def confirm_order(callback: types.CallbackQuery, state: FSMContext):
         f"👤 <b>Клиент:</b> @{callback.from_user.username or 'без юзернейма'}\n"
         f"🆔 <b>User ID:</b> <code>{order_data['user_id']}</code>\n"
         f"🎯 <b>Получатель:</b> {order_data['target_username']}\n"
-        f"🔢 <b>Количество:</b> {order_data['quantity']}\n"
-        f"💸 <b>К оплате:</b> {order_data['total_value']:.2f} ₽\n"
+        f"🔢 <b>Количество:</b> {order_data['quantity']} звёзд\n"
+        f"💰 <b>Курс:</b> 1 звезда = {order_data['rate']} {order_data['currency']}\n"
+        f"💸 <b>К оплате:</b> {order_data['total_value']:.2f} {order_data['currency']}\n"
         f"💳 <b>Оплата:</b> {order_data['payment_method']}"
     )
     
@@ -233,12 +261,12 @@ async def confirm_order(callback: types.CallbackQuery, state: FSMContext):
     
     # Сообщение пользователю
     await callback.message.answer(
-       f"💸 <b>Заказ создан</b>",
+       "💸 <b>Заказ создан</b>",
        parse_mode="HTML",
        reply_markup=builder.as_markup(resize_keyboard=True)
     )
 
-    # 📩 Инструкция по оплате с кликабельным ID и ссылкой
+    # Инструкция по оплате с кликабельным ID и ссылкой
     await callback.message.answer(
         f"💸 <b>Для завершения покупки</b> перешлите ID вашего заказа:\n"
         f"<code>{order_id}</code>\n"
@@ -257,9 +285,10 @@ async def cancel_order(callback: types.CallbackQuery, state: FSMContext):
     builder = ReplyKeyboardBuilder()
     builder.add(types.KeyboardButton(text="🛒 Сделать заказ"))
     builder.add(types.KeyboardButton(text="📝 Посмотреть отзывы"))
+    builder.add(types.KeyboardButton(text="📊 Курсы"))
 
     await callback.message.answer(
-        f"❌ <b>Заказ отменен</b>",
+        "❌ <b>Заказ отменен</b>",
         parse_mode="HTML",
         reply_markup=builder.as_markup(resize_keyboard=True)
     )
@@ -305,7 +334,6 @@ async def handle_ping(request):
     print("/ping recieved")
     return web.Response(text="OK")
 
-# Веб сервер
 async def start_web():
     app = web.Application()
     app.router.add_get('/ping', handle_ping)
@@ -321,5 +349,4 @@ async def main():
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
-    import asyncio
     asyncio.run(main())
